@@ -1,0 +1,19 @@
+start_t: "2026-01-01T09:00:00"
+steps:
+  - type: run
+    num_steps: 1
+    tick: 3600
+  - type: ask
+    question: "What has each agent been doing this morning?"
+  - type: intervene
+    instruction: "Tell Bob that Alice invited him to go hiking this weekend."
+  - type: questionnaire
+    questionnaire_id: "mood_check"
+    title: "Quick mood check-in"
+    questions:
+      - id: "mood"
+        prompt: "On a scale of 1-10, how would you rate your mood right now?"
+        response_type: integer
+      - id: "plans"
+        prompt: "What are you planning to do next?"
+        response_type: text

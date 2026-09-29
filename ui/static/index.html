@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentSociety Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='10' cy='12' r='5' fill='%232a78d6'/%3E%3Ccircle cx='22' cy='12' r='5' fill='%23eb6834'/%3E%3Ccircle cx='16' cy='22' r='5' fill='%231baf7a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side" aria-label="Main navigation">
+      <div class="brand">AgentSociety Studio<span>for AgentSociety 2</span></div>
+      <nav class="nav" id="nav">
+        <button data-page="home">Home</button>
+        <button data-page="studies">Paper studies</button>
+        <button data-page="custom">My experiments</button>
+        <button data-page="runs">Runs <span class="count" id="active-count" hidden>0</span></button>
+        <button data-page="results">Results</button>
+        <button data-page="settings">LLM settings</button>
+      </nav>
+      <div class="side-foot">
+        <span id="llm-pill" class="badge neutral">LLM: checking…</span>
+        <button id="theme-btn" class="small" type="button">Toggle dark mode</button>
+      </div>
+    </aside>
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/charts.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

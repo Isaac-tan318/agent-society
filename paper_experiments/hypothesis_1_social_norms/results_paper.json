@@ -1,0 +1,191 @@
+{
+  "norms": {
+    "per_seed": {
+      "paper_seed0": {
+        "generations": 99,
+        "boldness": [
+          4.0,
+          2.3
+        ],
+        "vengefulness": [
+          3.5,
+          0.2
+        ],
+        "mean_payoff_first_gen": -29.775,
+        "mean_payoff_last_gen": -7.55,
+        "total_meta_punishments": 0
+      },
+      "paper_seed1": {
+        "generations": 99,
+        "boldness": [
+          4.05,
+          0.95
+        ],
+        "vengefulness": [
+          3.05,
+          2.35
+        ],
+        "mean_payoff_first_gen": -27.950000000000003,
+        "mean_payoff_last_gen": -1.6125,
+        "total_meta_punishments": 0
+      },
+      "paper_seed2": {
+        "generations": 99,
+        "boldness": [
+          3.35,
+          0.05
+        ],
+        "vengefulness": [
+          3.85,
+          3.2
+        ],
+        "mean_payoff_first_gen": -29.6,
+        "mean_payoff_last_gen": 0.0,
+        "total_meta_punishments": 0
+      },
+      "paper_seed3": {
+        "generations": 99,
+        "boldness": [
+          4.1,
+          0.4
+        ],
+        "vengefulness": [
+          3.45,
+          2.45
+        ],
+        "mean_payoff_first_gen": -33.8,
+        "mean_payoff_last_gen": -2.0875000000000004,
+        "total_meta_punishments": 0
+      },
+      "paper_seed4": {
+        "generations": 99,
+        "boldness": [
+          3.3,
+          6.55
+        ],
+        "vengefulness": [
+          3.05,
+          0.25
+        ],
+        "mean_payoff_first_gen": -20.35,
+        "mean_payoff_last_gen": -19.4,
+        "total_meta_punishments": 0
+      }
+    },
+    "aggregate": {
+      "n_runs": 5,
+      "final_boldness_mean": 2.05,
+      "final_boldness_sd": 2.376762503911571,
+      "final_vengefulness_mean": 1.6900000000000002,
+      "final_vengefulness_sd": 1.2318279100588687,
+      "vengefulness_change_mean": -1.69
+    },
+    "paper": {
+      "boldness": [
+        1.9,
+        0.1
+      ],
+      "vengefulness": [
+        2.9,
+        2.55
+      ]
+    }
+  },
+  "metanorms": {
+    "per_seed": {
+      "paper_seed0": {
+        "generations": 99,
+        "boldness": [
+          4.0,
+          0.25
+        ],
+        "vengefulness": [
+          3.5,
+          6.5
+        ],
+        "mean_payoff_first_gen": -131.175,
+        "mean_payoff_last_gen": -0.875,
+        "total_meta_punishments": 4095
+      },
+      "paper_seed1": {
+        "generations": 99,
+        "boldness": [
+          4.05,
+          0.25
+        ],
+        "vengefulness": [
+          3.05,
+          4.75
+        ],
+        "mean_payoff_first_gen": -149.7625,
+        "mean_payoff_last_gen": -0.8125,
+        "total_meta_punishments": 2243
+      },
+      "paper_seed2": {
+        "generations": 99,
+        "boldness": [
+          3.35,
+          0.2
+        ],
+        "vengefulness": [
+          3.85,
+          4.95
+        ],
+        "mean_payoff_first_gen": -124.88749999999999,
+        "mean_payoff_last_gen": -0.475,
+        "total_meta_punishments": 3318
+      },
+      "paper_seed3": {
+        "generations": 99,
+        "boldness": [
+          4.1,
+          0.25
+        ],
+        "vengefulness": [
+          3.45,
+          6.45
+        ],
+        "mean_payoff_first_gen": -137.975,
+        "mean_payoff_last_gen": -3.2,
+        "total_meta_punishments": 4487
+      },
+      "paper_seed4": {
+        "generations": 99,
+        "boldness": [
+          3.3,
+          0.35
+        ],
+        "vengefulness": [
+          3.05,
+          5.8
+        ],
+        "mean_payoff_first_gen": -50.525,
+        "mean_payoff_last_gen": -9.799999999999999,
+        "total_meta_punishments": 1888
+      }
+    },
+    "aggregate": {
+      "n_runs": 5,
+      "final_boldness_mean": 0.26,
+      "final_boldness_sd": 0.04898979485566355,
+      "final_vengefulness_mean": 5.6899999999999995,
+      "final_vengefulness_sd": 0.7317103251970687,
+      "vengefulness_change_mean": 2.31
+    },
+    "paper": {
+      "boldness": [
+        3.35,
+        0.15
+      ],
+      "vengefulness": [
+        4.4,
+        6.15
+      ]
+    }
+  },
+  "qualitative_checks_vs_paper": {
+    "both conditions end with low boldness (< 1.0)": false,
+    "metanorms ends with higher vengefulness than norms": true,
+    "metanorms raises vengefulness (final > initial)": true
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "Studio test: neighbors",
+  "description": "",
+  "start": "2026-01-01T09:00",
+  "agents": [
+    {
+      "name": "Alice",
+      "age": "28",
+      "gender": "woman",
+      "occupation": "software engineer",
+      "personality": "friendly and curious",
+      "bio": "Loves hiking and board games; recently moved to the city."
+    },
+    {
+      "name": "Bob",
+      "age": "34",
+      "gender": "man",
+      "occupation": "data analyst",
+      "personality": "reserved and analytical",
+      "bio": "Plays chess, reads science fiction, cautious about new ideas."
+    }
+  ],
+  "steps": [
+    {
+      "type": "run",
+      "num_steps": 2,
+      "minutes": 60
+    },
+    {
+      "type": "ask",
+      "question": "What has each person been doing, and how do they feel about their neighbors?"
+    },
+    {
+      "type": "survey",
+      "title": "Survey",
+      "questions": [
+        {
+          "prompt": "On a scale of 1-10, how much do you trust your neighbors?",
+          "response_type": "integer",
+          "choices": ""
+        }
+      ]
+    }
+  ],
+  "updated": "2026-09-29T01:39:26"
+}

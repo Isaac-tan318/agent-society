@@ -1,0 +1,14 @@
+start_t: '2026-01-01T09:00:00'
+steps:
+- type: run
+  num_steps: 2
+  tick: 3600
+- type: ask
+  question: What has each person been doing, and how do they feel about their neighbors?
+- type: questionnaire
+  questionnaire_id: survey_3
+  title: Survey
+  questions:
+  - id: q1
+    prompt: On a scale of 1-10, how much do you trust your neighbors?
+    response_type: integer

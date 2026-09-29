@@ -1,0 +1,37 @@
+{
+  "env_modules": [
+    {
+      "module_type": "SimpleSocialSpace",
+      "kwargs": {
+        "agent_id_name_pairs": [[1, "Alice"], [2, "Bob"]]
+      }
+    }
+  ],
+  "agents": [
+    {
+      "agent_id": 1,
+      "agent_type": "PersonAgent",
+      "kwargs": {
+        "id": 1,
+        "name": "Alice",
+        "age": 28,
+        "personality": "friendly and curious",
+        "bio": "A software engineer who loves hiking."
+      }
+    },
+    {
+      "agent_id": 2,
+      "agent_type": "PersonAgent",
+      "kwargs": {
+        "id": 2,
+        "name": "Bob",
+        "age": 34,
+        "personality": "reserved and analytical",
+        "bio": "A data analyst who enjoys chess and reading sci-fi."
+      }
+    }
+  ],
+  "codegen_router": {
+    "final_summary_enabled": true
+  }
+}

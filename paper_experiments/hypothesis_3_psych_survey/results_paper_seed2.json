@@ -1,0 +1,50 @@
+{
+  "ee": {
+    "sim": null,
+    "paper": {
+      "agents": {
+        "wta": 63.32,
+        "wtp": 48.37,
+        "share_wta_gt_wtp": 0.978
+      },
+      "humans": {
+        "wta": 107.84,
+        "wtp": 74.36
+      }
+    }
+  },
+  "se": {
+    "sim": null,
+    "paper": {
+      "agents": {
+        "overall_mean": 53.72
+      },
+      "humans": {
+        "overall_mean": 43.61
+      }
+    }
+  },
+  "iat": {
+    "sim": null,
+    "paper": {
+      "agents": {
+        "rt_congruent_ms": 807.7,
+        "rt_incongruent_ms": 809.3,
+        "acc_congruent": 0.885,
+        "acc_incongruent": 0.869
+      }
+    }
+  },
+  "sre": {
+    "sim": null,
+    "paper": {
+      "agents": {
+        "old_acc": 0.584,
+        "new_acc": 0.634,
+        "self": 0.572,
+        "friend": 0.592,
+        "other": 0.587
+      }
+    }
+  }
+}

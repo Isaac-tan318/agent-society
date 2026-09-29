@@ -1,0 +1,52 @@
+{
+  "results": {
+    "counter": {
+      "n_agents": 4,
+      "compliance": 0.0,
+      "mean_outlets_followed": 0.0,
+      "feed_counter_share": 0.1875,
+      "candidate_counter_share": 0.1875,
+      "cumulative_counter_reads": 0.0,
+      "affective_change": -1.25,
+      "baseline_gap": 77.5,
+      "opinion_index": 2.8875,
+      "weekly_submission_rate": 1.0
+    }
+  },
+  "paper": {
+    "compliance": {
+      "pro": 0.59,
+      "counter": 0.43
+    },
+    "feed_counter_share": {
+      "control": 0.2871,
+      "pro": 0.1921,
+      "counter": 0.3569
+    },
+    "cumulative_counter_reads": {
+      "control": 1.65,
+      "pro": 0.86,
+      "counter": 4.15
+    },
+    "affective_change": {
+      "control": 2.36,
+      "pro": 2.8,
+      "counter": 1.28
+    },
+    "opinion_index": {
+      "control": 3.01,
+      "pro": 3.04,
+      "counter": 2.99
+    },
+    "gap_decomposition_pp": {
+      "pro": {
+        "subscription": -5.23,
+        "ranking": -4.27
+      },
+      "counter": {
+        "subscription": 5.24,
+        "ranking": 1.75
+      }
+    }
+  }
+}
