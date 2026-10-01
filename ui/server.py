@@ -7,6 +7,8 @@ What it does:
 - edits the LLM connection in .env (and tests it with one call),
 - runs the AgentSociety 2 paper studies (paper_experiments/) and custom experiments
   built in the browser, as background processes via paper_experiments/run_study.py,
+- imports and builds city maps (maps.py) so custom experiments can place people on a
+  real road network (MobilitySpace), and replays their movement,
 - shows live progress and logs, stops runs, and shows results next to the paper's numbers.
 """
 
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import re
 import shutil
@@ -30,9 +33,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+import maps
 
 UI_DIR = Path(__file__).resolve().parent
 PROJECT = UI_DIR.parent
@@ -118,8 +124,9 @@ STUDIES: list[dict[str, Any]] = [
         "paper_finding": "Best intention-sequence JSD of all methods (0.138); weaker spatial realism "
                          "(gyration radius JSD 0.598).",
         "experiments": [("experiment_1_beijing_day", "One weekday in Beijing")],
-        "blocked": "Needs Linux/WSL: MobilitySpace's routing binary exists only for Linux x86_64 and macOS "
-                   "arm64. Also needs beijing.pb (168 MB) + profiles from HuggingFace.",
+        "blocked": "Needs the benchmark's Beijing map (beijing.pb, 168 MB) and resident profiles from the "
+                   "HuggingFace dataset tsinghua-fib-lab/daily-mobility-generation-benchmark, placed in "
+                   "paper_experiments/data/mobility/. (Routing itself now works on Windows.)",
         "results": None, "seeded": False,
     },
     {
@@ -128,13 +135,14 @@ STUDIES: list[dict[str, Any]] = [
         "summary": "100 residents over 11 days (hourly) while official broadcasts follow each disaster's phases.",
         "paper_finding": "Normalized daily mobility tracks the empirical curve; phase RMSE 0.0073-0.0188.",
         "experiments": [("experiment_1_texas_winter_storm", "2021 Texas Winter Storm"), ("experiment_2_camp_fire", "2018 Camp Fire")],
-        "blocked": "Needs Linux/WSL (MobilitySpace routing binary) plus a city map and profiles; the paper's "
-                   "Houston map and SafeGraph series are not public.",
+        "blocked": "Needs a city map and resident profiles in paper_experiments/data/disaster/; the paper's "
+                   "Houston map and SafeGraph mobility series are not public. (Routing itself now works on Windows.)",
         "results": None, "seeded": False,
     },
 ]
 
 app = FastAPI(title="AgentSociety 2 Studio")
+app.add_middleware(GZipMiddleware, minimum_size=2000)  # map previews and replays are a few MB of JSON
 RUNS: dict[str, dict[str, Any]] = {}  # runs launched by this server process
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 _NOISE = re.compile(r"not in built-in cost map|\(raylet\)|job_logging_config|client_mode_hook|"
@@ -268,6 +276,7 @@ def _run_info(run_dir: Path) -> dict[str, Any]:
         "ticks_done": done, "ticks_total": total,
         "started": meta.get("started") or pid.get("start_time"), "ended": pid.get("end_time"),
         "error": _friendly_error(pid.get("error")), "sim_time": pid.get("simulation_time"),
+        "map": meta.get("map"),
     }
 
 
@@ -372,7 +381,8 @@ def _launch(exp_dir: Path, preset: str, seed: int, label: str) -> dict:
         shutil.copy2(exp_dir / "init" / f, snap / f)
     totals = _steps_totals(exp_dir / "init" / "steps.yaml")
     meta = {"label": label, "preset": preset, "seed": seed, "started": datetime.now().isoformat(timespec="seconds"),
-            "total_ticks": totals["ticks"], "total_steps": totals["top_steps"]}
+            "total_ticks": totals["ticks"], "total_steps": totals["top_steps"],
+            "map": _map_of(_json(exp_dir / "init" / "init_config.json", {}) or {})}
     (run_dir / "studio_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     console = run_dir / "console.log"
     env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
@@ -479,6 +489,190 @@ def run_artifacts(run: str) -> dict:
             items.append({"file": f.name, "kind": "survey", "title": d.get("title") or d.get("questionnaire_id"),
                           "questions": prompts, "rows": rows})
     return {"run": _run_info(run_dir), "items": items}
+
+
+def _map_of(init: dict) -> Optional[str]:
+    """Map id of a Studio map used by a config's MobilitySpace (file_path maps/<id>/map.pb), if any."""
+    for m in init.get("env_modules", []):
+        if m.get("module_type") == "MobilitySpace":
+            fp = str((m.get("kwargs") or {}).get("file_path", "")).replace("\\", "/")
+            hit = re.search(r"(?:^|/)maps/([a-z0-9_]+)/map\.pb$", fp)
+            return hit.group(1) if hit else "external"
+    return None
+
+
+def _km(a: list, b: list) -> float:
+    (lng1, lat1), (lng2, lat2) = a, b
+    x = math.radians(lng2 - lng1) * math.cos(math.radians((lat1 + lat2) / 2))
+    return 6371.0 * math.hypot(x, math.radians(lat2 - lat1))
+
+
+@app.get("/api/runs/replay")
+def run_replay(run: str) -> dict:
+    """Per-step agent positions of a MobilitySpace run (replay/mobility_agent_state.*.jsonl)."""
+    run_dir = _run_dir(run)
+    init = _json(run_dir / "run_config" / "init_config.json", {}) or {}
+    map_id = _map_of(init)
+    if map_id is None:
+        raise HTTPException(404, "This run has no map.")
+    names = {a["agent_id"]: a["kwargs"].get("name", f"Agent {a['agent_id']}") for a in init.get("agents", [])}
+    frames: dict[int, dict] = {}
+    for f in (run_dir / "replay").glob("mobility_agent_state.*.jsonl"):
+        for r in _jsonl(f):
+            fr = frames.setdefault(int(r["step"]), {"step": int(r["step"]), "t": r.get("t"), "agents": []})
+            fr["agents"].append([r["agent_id"], round(r["lng"], 6), round(r["lat"], 6), r.get("status"), r.get("aoi_id")])
+    ordered = [frames[k] for k in sorted(frames)]
+    labels = maps.place_index(map_id) if map_id != "external" and (maps.MAPS / map_id).is_dir() else {}
+    # A trip = arriving at a different place than the last one. (Trips usually finish within one step, so
+    # "moving" is rarely seen at step boundaries.) Distance is straight-line between step positions.
+    trips = {aid: {"agent": aid, "name": name, "trips": 0, "km": 0.0, "places": []} for aid, name in names.items()}
+    last: dict[int, list] = {}
+    last_aoi: dict[int, Any] = {}
+    for fr in ordered:
+        for aid, lng, lat, status, aoi in fr["agents"]:
+            t = trips.setdefault(aid, {"agent": aid, "name": names.get(aid, f"Agent {aid}"), "trips": 0, "km": 0.0, "places": []})
+            if aid in last:
+                t["km"] += _km(last[aid], [lng, lat])
+            if status == "idle" and aoi is not None:
+                if aid in last_aoi and last_aoi[aid] != aoi:
+                    t["trips"] += 1
+                last_aoi[aid] = aoi
+                place = (labels.get(aoi) or {}).get("label") or f"building {aoi}"
+                if not t["places"] or t["places"][-1] != place:
+                    t["places"].append(place)
+            last[aid] = [lng, lat]
+    for t in trips.values():
+        t["km"] = round(t["km"], 2)
+    bbox = None
+    if map_id != "external":
+        try:
+            bbox = maps.get_map(map_id).get("bbox")
+        except (KeyError, ValueError):
+            pass
+    return {"run": _run_info(run_dir), "map_id": map_id, "bbox": bbox,
+            "names": {str(k): v for k, v in names.items()}, "frames": ordered, "trips": list(trips.values())}
+
+
+# --------------------------------------------------------------------------- maps
+def _maps_in_use() -> dict[str, list[str]]:
+    used: dict[str, list[str]] = {}
+    for f in MY_EXPS.glob("*/experiment.json"):
+        meta = _json(f, {}) or {}
+        mid = (meta.get("map") or {}).get("id")
+        if mid:
+            used.setdefault(mid, []).append(meta.get("name") or f.parent.name)
+    return used
+
+
+def _map_or_404(map_id: str) -> dict:
+    try:
+        return maps.get_map(map_id)
+    except (KeyError, ValueError):
+        raise HTTPException(404, "map not found") from None
+
+
+@app.get("/api/maps")
+def list_maps() -> dict:
+    used = _maps_in_use()
+    return {"maps": [{**m, "used_by": used.get(m["id"], [])} for m in maps.list_maps()],
+            "suggestions": maps.suggestions(), "presets": maps.PRESETS, "groups": maps.LAND_USE_GROUPS}
+
+
+@app.get("/api/maps/docker")
+async def maps_docker() -> dict:
+    return await asyncio.to_thread(maps.docker_status)
+
+
+@app.post("/api/maps/import")
+def import_map(body: dict = Body(...)) -> dict:
+    path = str(body.get("path", ""))
+    if path not in {s["path"] for s in maps.suggestions()}:  # arbitrary files go through the upload endpoint
+        raise HTTPException(400, "That map file is no longer available to import.")
+    try:
+        return maps.import_path(path, str(body.get("name", "")))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+
+
+@app.post("/api/maps/upload")
+async def upload_map(request: Request, name: str = "", filename: str = "") -> dict:
+    try:
+        mid, target = maps.begin_upload(name, filename)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    size = 0
+    try:
+        with open(target, "wb") as out:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > maps.MAX_UPLOAD:
+                    raise ValueError("That file is larger than 2 GB.")
+                out.write(chunk)
+        if size == 0:
+            raise ValueError("The file is empty.")
+    except Exception as exc:
+        maps.abort_upload(mid)
+        raise HTTPException(400, str(exc)) from None
+    return maps.finish_upload(mid)
+
+
+@app.post("/api/maps/build")
+async def build_map(body: dict = Body(...)) -> dict:
+    preset = body.get("preset")
+    if preset:
+        p = maps.PRESETS.get(str(preset))
+        if not p:
+            raise HTTPException(400, "unknown preset")
+        bbox, name = p["bbox"], str(body.get("name") or p["name"])
+    else:
+        bbox, name = body.get("bbox"), str(body.get("name") or "").strip()
+        if not (isinstance(bbox, list) and len(bbox) == 4):
+            raise HTTPException(400, "Draw the area on the map first.")
+        if not name:
+            raise HTTPException(400, "Give the map a name.")
+    try:
+        return await asyncio.to_thread(maps.build, name, bbox, preset)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(400, str(exc)) from None
+
+
+@app.post("/api/maps/cancel")
+def cancel_map(body: dict = Body(...)) -> dict:
+    _map_or_404(str(body.get("id", "")))
+    return maps.cancel(str(body["id"]))
+
+
+@app.post("/api/maps/delete")
+def delete_map(body: dict = Body(...)) -> dict:
+    map_id = str(body.get("id", ""))
+    _map_or_404(map_id)
+    users = _maps_in_use().get(map_id)
+    if users:
+        raise HTTPException(409, f"Used by {', '.join(users)}. Remove the map from those experiments first.")
+    try:
+        maps.delete(map_id)
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return {"deleted": map_id}
+
+
+@app.get("/api/maps/{map_id}/preview")
+def map_preview(map_id: str) -> FileResponse:
+    _map_or_404(map_id)
+    p = maps.map_dir(map_id) / "preview.json"
+    if not p.is_file():
+        raise HTTPException(404, "The map is still being prepared.")
+    return FileResponse(p, media_type="application/json")
+
+
+@app.get("/api/maps/{map_id}/people")
+def map_people(map_id: str, n: int = 1, seed: Optional[int] = None) -> list[dict]:
+    if _map_or_404(map_id).get("status") != "ready":
+        raise HTTPException(409, "The map isn't ready yet.")
+    try:
+        return maps.sample_people(map_id, n, seed)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
 
 
 # --------------------------------------------------------------------------- results
@@ -642,9 +836,42 @@ def _build_custom(spec: dict) -> tuple[dict, dict]:
         datetime.fromisoformat(start)
     except ValueError:
         raise HTTPException(400, "Start time must look like 2026-01-01T09:00") from None
-    init = {"env_modules": [{"module_type": "SimpleSocialSpace", "kwargs": {"agent_id_name_pairs": pairs}}],
-            "agents": agents, "codegen_router": {"final_summary_enabled": True}}
+    env_modules = [{"module_type": "SimpleSocialSpace", "kwargs": {"agent_id_name_pairs": pairs}}]
+    if (spec.get("map") or {}).get("id"):
+        env_modules.append(_mobility_module(spec["map"], agents, agents_in))
+    init = {"env_modules": env_modules, "agents": agents, "codegen_router": {"final_summary_enabled": True}}
     return init, {"start_t": start if len(start) > 16 else start + ":00", "steps": steps}
+
+
+def _mobility_module(spec_map: dict, agents: list[dict], rows: list[dict]) -> dict:
+    """MobilitySpace config placing each agent at the home/workplace chosen in the builder (row["home"],
+    row["work"] = AOI ids on a Studio map); also tells each agent where they live and work (profile fields)
+    and turns on the daily-planning skill, as the paper's DailyMobility config does."""
+    map_id = str(spec_map.get("id"))
+    info = _map_or_404(map_id)
+    if info.get("status") != "ready":
+        raise HTTPException(409, f"The map {info.get('name', map_id)} isn't ready yet.")
+    known = maps.place_index(map_id)
+    city = info.get("name") or map_id
+    persons = []
+    for agent, p in zip(agents, rows):
+        try:
+            home, work = int(p["home"]), int(p["work"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(400, f"Place {agent['kwargs']['name']} on the map (use 'Place everyone "
+                                     "randomly').") from None
+        if home not in known or work not in known:
+            raise HTTPException(400, f"{agent['kwargs']['name']}'s home or workplace isn't a reachable place on "
+                                     "this map; re-roll it.")
+        aid = agent["agent_id"]
+        persons.append({"id": aid, "position": {"aoi_id": home}, "home_aoi": home, "work_aoi": work})
+        kw = agent["kwargs"]
+        kw["city"] = city
+        kw["home"] = f"AOI {home} ({known[home]['label']})"
+        kw["workplace"] = f"AOI {work} ({known[work]['label']})"
+        kw["default_activated_skill_ids"] = ["built-in@daily-guidance"]
+    return {"module_type": "MobilitySpace",
+            "kwargs": {"file_path": f"maps/{map_id}/map.pb", "home_dir": "", "persons": persons}}
 
 
 @app.get("/api/custom")
@@ -679,6 +906,7 @@ def save_custom(spec: dict = Body(...)) -> dict:
     (exp / "init" / "steps.yaml").write_text(yaml.safe_dump(steps, sort_keys=False, allow_unicode=True), encoding="utf-8")
     meta = {"name": name, "description": str(spec.get("description", "")), "start": spec.get("start"),
             "agents": spec.get("agents", []), "steps": spec.get("steps", []),
+            "map": spec.get("map") if (spec.get("map") or {}).get("id") else None,
             "updated": datetime.now().isoformat(timespec="seconds")}
     (exp / "experiment.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"path": _rel(exp), **meta}

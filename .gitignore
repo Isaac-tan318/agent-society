@@ -36,6 +36,8 @@ paper_experiments/hypothesis_*/**/init/steps.yaml
 data/cache/
 paper_experiments/data/
 paper_experiments/hypothesis_3_psych_survey/data/qi2025/
+# City maps imported or built in the Studio (map.pb, previews, place lists, build logs)
+paper_experiments/maps/
 
 # --- Singapore / v1 configs -----------------------------------------------------
 config/singapore.yaml

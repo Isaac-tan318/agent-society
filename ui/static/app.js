@@ -146,7 +146,7 @@
   function studyCard(st) {
     const blocked = !!st.blocked;
     const badge = blocked
-      ? h("span", { class: "badge warn" }, st.experiments.length ? "! Needs Linux/WSL" : "! Not built yet")
+      ? h("span", { class: "badge warn" }, st.experiments.length ? "! Needs data" : "! Not built yet")
       : h("span", { class: "badge good" }, "✓ Ready");
     const card = h("div", { class: "card stack" },
       h("div", { class: "row" }, h("span", { class: "tag", text: `PAPER §${st.section}` }), h("span", { class: "spacer" }), badge),
@@ -212,7 +212,7 @@
       const actions = h("div", { class: "row", style: { gap: "4px", justifyContent: "flex-end" } },
         h("button", { class: "link", onclick: () => go("runs", { openRun: r.run }) }, "Log"));
       if (r.experiment.startsWith("my_experiments/")) {
-        actions.appendChild(h("button", { class: "link", onclick: () => go("results", { run: r.run }) }, "Answers"));
+        actions.appendChild(h("button", { class: "link", onclick: () => go("results", { run: r.run }) }, r.map ? "Map & answers" : "Answers"));
       } else {
         actions.appendChild(h("button", { class: "link", onclick: () => go("results", { runPath: r.experiment, preset: r.preset, seed: r.seed }) }, "Results"));
       }
@@ -348,12 +348,27 @@
     if (opts.study || opts.run || opts.runPath) show();
   };
 
+  async function showMovement(out, run) {
+    const card = h("div", { class: "card stack" }, h("span", { class: "tag", text: "MOVEMENT" }), h("h3", { text: "Where everyone went" }));
+    out.appendChild(card);
+    let d;
+    try { d = await api("GET", `/api/runs/replay?run=${encodeURIComponent(run)}`); } catch (e) { card.appendChild(h("div", { class: "notice bad small" }, e.message)); return; }
+    await StudioMaps.replay(card, d);
+    if (!d.frames.length) return;
+    const table = h("table", {}, h("tr", {}, h("th", {}, "Person"), h("th", { class: "num" }, "Trips"), h("th", { class: "num", title: "Straight-line distance between the positions recorded at each step" }, "Distance (straight line)"), h("th", {}, "Places, in order")));
+    d.trips.forEach((t) => table.appendChild(h("tr", {},
+      h("td", { class: "nowrap", text: t.name }), h("td", { class: "num", text: String(t.trips) }),
+      h("td", { class: "num nowrap", text: `${t.km.toFixed(1)} km` }), h("td", { class: "small secondary", text: t.places.join(" → ") || "–" }))));
+    card.appendChild(h("div", { class: "table-wrap" }, table));
+  }
+
   async function showAnswers(out, run) {
     out.appendChild(h("div", { class: "muted" }, "Loading answers…"));
     try {
       const d = await api("GET", `/api/runs/artifacts?run=${encodeURIComponent(run)}`);
       out.innerHTML = "";
       out.appendChild(h("div", { class: "row" }, h("h2", { text: d.run.label }), statusBadge(d.run.status)));
+      if (d.run.map) await showMovement(out, run);
       if (!d.items.length) out.appendChild(h("div", { class: "empty" }, d.run.status === "running" ? "No answers yet — the run is still in progress." : "This run produced no answers."));
       d.items.forEach((it) => {
         if (it.kind === "survey") {
@@ -371,28 +386,30 @@
 
   // ---- custom experiments
   PAGES.custom = async function (opts) {
-    if (opts.new || opts.edit) return builder(opts.edit);
+    if (opts.new || opts.edit) return builder(opts.edit, opts.map);
     main.appendChild(h("div", { class: "page-head" },
-      h("div", {}, h("h1", { text: "My experiments" }), h("p", { class: "secondary" }, "Small societies of LLM agents that you design in the browser. Each agent is an AgentSociety 2 PersonAgent in a shared social space where they can message each other.")),
+      h("div", {}, h("h1", { text: "My experiments" }), h("p", { class: "secondary" }, "Small societies of LLM agents that you design in the browser. Each agent is an AgentSociety 2 PersonAgent in a shared social space where they can message each other, optionally living on a real city map.")),
       h("button", { class: "primary", onclick: () => go("custom", { new: true }) }, "+ New experiment")));
     const list = h("div", { class: "grid two" });
     main.appendChild(list);
-    const items = await api("GET", "/api/custom").catch(() => []);
+    const [items, mapsData] = await Promise.all([api("GET", "/api/custom").catch(() => []), api("GET", "/api/maps").catch(() => ({ maps: [] }))]);
+    const mapNames = Object.fromEntries(mapsData.maps.map((m) => [m.id, m.name]));
     if (!items.length) list.appendChild(h("div", { class: "card empty" }, "No experiments yet. Click “New experiment” to design one."));
     items.forEach((x) => {
       const last = x.runs && x.runs[0];
       const out = h("pre", { class: "log", hidden: true });
+      const mapNote = x.map ? ` · map: ${mapNames[x.map.id] || `${x.map.id} (missing)`}` : "";
       list.appendChild(h("div", { class: "card stack" },
         h("div", { class: "row" }, h("h2", { text: x.name }), h("span", { class: "spacer" }), last ? statusBadge(last.status) : null),
         x.description ? h("p", { class: "secondary", text: x.description }) : null,
-        h("div", { class: "muted small" }, `${(x.agents || []).length} agents · ${(x.steps || []).length} timeline steps · ${(x.runs || []).length} runs`),
+        h("div", { class: "muted small" }, `${(x.agents || []).length} agents · ${(x.steps || []).length} timeline steps · ${(x.runs || []).length} runs${mapNote}`),
         h("div", { class: "row" },
           h("button", { class: "primary", onclick: async () => {
             try { const r = await api("POST", "/api/custom/run", { path: x.path }); toast(`Started ${r.label}.`, "good"); go("runs", { openRun: r.run }); } catch (e) { toast(e.message, "bad"); }
           } }, "Run"),
           h("button", { onclick: () => go("custom", { edit: x.path }) }, "Edit"),
           h("button", { onclick: () => check(x.path, "custom", 0, out) }, "Check"),
-          last ? h("button", { onclick: () => go("results", { run: last.run }) }, "Latest answers") : null,
+          last ? h("button", { onclick: () => go("results", { run: last.run }) }, x.map ? "Latest map & answers" : "Latest answers") : null,
           h("span", { class: "spacer" }),
           h("button", { class: "link danger", onclick: async () => {
             if (!confirm(`Permanently delete “${x.name}” and all of its runs?`)) return;
@@ -408,13 +425,20 @@
     { name: "Carol", age: "45", gender: "woman", occupation: "nurse", personality: "warm, practical, outspoken", bio: "Volunteers at the community center and knows everyone on the street." },
   ];
 
-  async function builder(path) {
+  async function builder(path, startMap) {
     let spec = { name: "", description: "", start: "2026-01-01T09:00", agents: EXAMPLE_AGENTS.slice(0, 2).map((a) => ({ ...a })),
       steps: [{ type: "run", num_steps: 2, minutes: 60 }, { type: "ask", question: "What has each person been doing, and how do they feel about their neighbors?" }] };
     if (path) {
       try { spec = await api("GET", `/api/custom/get?path=${encodeURIComponent(path)}`); } catch (e) { toast(e.message, "bad"); }
+    } else if (startMap) {
+      spec.map = { id: startMap };
+      spec.start = "2026-01-05T07:00";
+      spec.steps = [{ type: "run", num_steps: 6, minutes: 30 },
+        { type: "ask", question: "Where did each person go this morning, how did they travel, and why?" }];
     }
     spec.path = path || null;
+    const mapsList = await api("GET", "/api/maps").then((d) => d.maps).catch(() => []);
+    const readyMaps = mapsList.filter((m) => m.status === "ready");
     main.appendChild(h("div", { class: "page-head" },
       h("div", {}, h("h1", { text: path ? "Edit experiment" : "New experiment" }), h("p", { class: "secondary" }, "Describe the people, then what happens. Nothing here needs code.")),
       h("button", { onclick: () => go("custom") }, "← Back")));
@@ -451,7 +475,64 @@
           h("td", {}, h("button", { class: "link danger", "aria-label": `Remove ${a.name || "person"}`, onclick: () => { spec.agents.splice(i, 1); drawAgents(); } }, "✕"))));
       });
       estimate();
+      if (typeof drawMap === "function") drawMap();
     }
+    // map
+    const mapSel = h("select", { "aria-label": "Map" }, h("option", { value: "" }, "No map — people only message each other"),
+      readyMaps.map((m) => h("option", { value: m.id }, m.name)));
+    const mapBody = h("div", { class: "stack" });
+    main.appendChild(h("div", { class: "card stack", style: { marginTop: "14px" } }, h("h2", { text: "3. Map (optional)" }),
+      h("p", { class: "secondary small" }, "Put everyone in a real city: each person gets a home and a workplace, and while time passes they decide where to go and walk or drive along the map's roads."),
+      h("label", {}, "Map", mapSel), mapBody));
+    const missingMap = spec.map && !readyMaps.some((m) => m.id === spec.map.id);
+    mapSel.value = spec.map && !missingMap ? spec.map.id : "";
+    const info = (p) => ({ label: p.label, lng: p.lng, lat: p.lat });
+    async function place(rows) {
+      if (!rows.length) return;
+      const people = await api("GET", `/api/maps/${encodeURIComponent(spec.map.id)}/people?n=${rows.length}`);
+      rows.forEach((a, i) => {
+        a.home = people[i].home.id; a.home_info = info(people[i].home);
+        a.work = people[i].work.id; a.work_info = info(people[i].work);
+      });
+    }
+    let drawingMap = null;
+    async function drawMap() {
+      if (drawingMap) return drawingMap;
+      drawingMap = (async () => {
+        mapBody.innerHTML = "";
+        if (missingMap && !spec.map) {
+          mapBody.appendChild(h("div", { class: "notice warn small" }, "This experiment's map is no longer available. Pick another map or run without one."));
+        }
+        if (!spec.map) {
+          if (!readyMaps.length) mapBody.appendChild(h("div", { class: "row" }, h("span", { class: "muted small" }, "You have no maps yet."), h("button", { onclick: () => go("maps") }, "Go to Maps")));
+          return;
+        }
+        const missing = spec.agents.filter((a) => !a.home || !a.work);
+        try { await place(missing); } catch (e) { mapBody.appendChild(h("div", { class: "notice bad small" }, e.message)); return; }
+        const list = h("div", { class: "place-list" });
+        spec.agents.forEach((a) => {
+          list.appendChild(h("div", { class: "row" },
+            h("span", {}, h("strong", { text: a.name || "(unnamed)" }), h("span", { class: "secondary small" }, ` · home ${a.home_info.label} · work ${a.work_info.label}`)),
+            h("button", { class: "link", onclick: async () => { try { await place([a]); drawMap(); } catch (e) { toast(e.message, "bad"); } } }, "Re-roll")));
+        });
+        const pmBox = h("div", { class: "stack" });
+        mapBody.append(
+          h("div", { class: "row" },
+            h("button", { onclick: async () => { try { await place(spec.agents); drawMap(); } catch (e) { toast(e.message, "bad"); } } }, "Place everyone randomly"),
+            h("span", { class: "muted small" }, "Homes are residential buildings; workplaces are offices, shops, schools and other institutions.")),
+          list, pmBox,
+          h("div", { class: "notice small" }, "Tip: use “Let time pass” steps of 15–30 minutes. Each step, every person decides what to do next (one or more LLM calls), and the replay under Results shows where they went."));
+        StudioMaps.peopleMap(pmBox, spec.agents.map((a) => ({ name: a.name, home: a.home_info, work: a.work_info })));
+      })();
+      try { await drawingMap; } finally { drawingMap = null; }
+    }
+    mapSel.addEventListener("change", () => {
+      spec.map = mapSel.value ? { id: mapSel.value } : null;
+      spec.agents.forEach((a) => { delete a.home; delete a.work; delete a.home_info; delete a.work_info; });
+      drawMap();
+      estimate();
+    });
+    if (missingMap) spec.map = null;
     // timeline
     const stepsHolder = h("div", { class: "stack" });
     const addMenu = h("div", { class: "row" },
@@ -459,7 +540,7 @@
       h("button", { onclick: () => addStep({ type: "ask", question: "" }) }, "+ Ask the society a question"),
       h("button", { onclick: () => addStep({ type: "intervene", instruction: "" }) }, "+ Intervene"),
       h("button", { onclick: () => addStep({ type: "survey", title: "Survey", questions: [{ prompt: "", response_type: "text", choices: "" }] }) }, "+ Survey everyone"));
-    main.appendChild(h("div", { class: "card stack", style: { marginTop: "14px" } }, h("h2", { text: "3. Timeline" }),
+    main.appendChild(h("div", { class: "card stack", style: { marginTop: "14px" } }, h("h2", { text: "4. Timeline" }),
       h("p", { class: "secondary small" }, "Steps run top to bottom. “Let time pass” is when agents live and interact; questions and interventions are answered by an AI analyst looking at the society; surveys ask every person directly."),
       stepsHolder, addMenu));
     function addStep(s) { spec.steps.push(s); drawSteps(); }
@@ -511,7 +592,7 @@
       const n = spec.agents.filter((a) => (a.name || "").trim()).length;
       let calls = 0;
       spec.steps.forEach((s) => {
-        if (s.type === "run") calls += n * (parseInt(s.num_steps, 10) || 0) * 5;
+        if (s.type === "run") calls += n * (parseInt(s.num_steps, 10) || 0) * (spec.map ? 8 : 5);
         else if (s.type === "survey") calls += n * (s.questions || []).length * 3;
         else calls += 10;
       });
@@ -539,7 +620,167 @@
         } }, "Save & run")), out));
     drawAgents();
     drawSteps();
+    drawMap();
   }
+
+  // ---- maps
+  const MAP_STATUS = {
+    ready: ["good", "✓ Ready"], preparing: ["info", "● Preparing"], building: ["info", "● Building"],
+    copying: ["info", "● Importing"], failed: ["bad", "✕ Failed"], cancelled: ["neutral", "■ Cancelled"],
+  };
+  const fmtN = (n) => (n ?? 0).toLocaleString();
+
+  PAGES.maps = async function () {
+    main.appendChild(h("div", { class: "page-head" },
+      h("div", {}, h("h1", { text: "Maps" }),
+        h("p", { class: "secondary" }, "City maps for your experiments. People get a home and a workplace on the map, then walk or drive along its real roads while time passes."))));
+    const listCard = h("div", { class: "stack" });
+    const importCard = h("div", { class: "card stack", style: { marginTop: "14px" } });
+    const buildCard = h("div", { class: "card stack", style: { marginTop: "14px" } });
+    main.append(listCard, importCard, buildCard);
+    const open = new Set(); // map ids whose preview is open
+    let data = null;
+    let listKey = "";
+    let importKey = "";
+
+    async function refresh() {
+      const d = await api("GET", "/api/maps").catch((e) => { toast(e.message, "bad"); return null; });
+      if (!d) return;
+      data = d;
+      // Redraw only what changed, so open previews and half-filled forms survive polling.
+      const lk = JSON.stringify(d.maps);
+      if (lk !== listKey) { listKey = lk; drawList(); }
+      const ik = JSON.stringify(d.suggestions);
+      if (ik !== importKey) { importKey = ik; drawImport(); }
+      if (!d.maps.some((m) => ["building", "preparing", "copying"].includes(m.status))) clearTimers();
+    }
+    function poll() { clearTimers(); every(3000, refresh); }
+
+    function drawList() {
+      listCard.innerHTML = "";
+      listCard.appendChild(h("h2", { text: "Your maps" }));
+      if (!data.maps.length) {
+        listCard.appendChild(h("div", { class: "card empty" }, "No maps yet. Import one or build one below."));
+        return;
+      }
+      const grid = h("div", { class: "grid two" });
+      listCard.appendChild(grid);
+      data.maps.forEach((m) => {
+        const [cls, label] = MAP_STATUS[m.status] || ["neutral", m.status || "?"];
+        const c = m.counts;
+        const previewBox = h("div", { class: "stack" });
+        const card = h("div", { class: "card stack map-card" },
+          h("div", { class: "row" }, h("h3", { text: m.name }), h("span", { class: "spacer" }), h("span", { class: `badge ${cls}` }, label)),
+          c ? h("div", { class: "secondary small" }, `${fmtN(c.homes)} homes · ${fmtN(c.works)} workplaces · ${fmtN(c.reachable)} reachable of ${fmtN(c.aois)} buildings · ${fmtN(c.roads)} roads · ${fmtN(c.pois)} points of interest`) : null,
+          h("div", { class: "muted small" }, m.source === "build" ? `Built from OpenStreetMap${m.area_km2 ? ` (${m.area_km2} km²)` : ""}` : `Imported from ${m.source_path || "a file"}`),
+          m.progress && m.status !== "ready" ? h("div", { class: "muted small" }, `${m.progress}…`) : null,
+          m.error && m.status !== "ready" ? h("div", { class: "err" }, m.error) : null,
+          m.log_tail ? h("details", { open: m.status === "building" }, h("summary", {}, "Build log"), h("pre", { class: "log", text: m.log_tail })) : null,
+          (m.used_by || []).length ? h("div", { class: "muted small" }, `Used by: ${m.used_by.join(", ")}`) : null,
+          h("div", { class: "row" },
+            m.status === "ready" ? h("button", { onclick: () => { open.has(m.id) ? open.delete(m.id) : open.add(m.id); drawList(); } }, open.has(m.id) ? "Hide map" : "Show map") : null,
+            m.status === "ready" ? h("button", { onclick: () => go("custom", { new: true, map: m.id }) }, "New experiment on this map") : null,
+            m.status === "building" ? h("button", { class: "danger", onclick: async () => {
+              if (!confirm(`Cancel building ${m.name}?`)) return;
+              try { await api("POST", "/api/maps/cancel", { id: m.id }); refresh(); } catch (e) { toast(e.message, "bad"); }
+            } }, "Cancel build") : null,
+            h("span", { class: "spacer" }),
+            h("button", { class: "link danger", onclick: async () => {
+              if (!confirm(`Delete the map ${m.name}? Experiments can't use it afterwards.`)) return;
+              try { await api("POST", "/api/maps/delete", { id: m.id }); open.delete(m.id); refresh(); } catch (e) { toast(e.message, "bad"); }
+            } }, "Delete")),
+          previewBox);
+        grid.appendChild(card);
+        if (open.has(m.id)) StudioMaps.preview(previewBox, m.id, data.groups);
+      });
+    }
+
+    function drawImport() {
+      importCard.innerHTML = "";
+      importCard.appendChild(h("h2", { text: "Import a map" }));
+      importCard.appendChild(h("p", { class: "secondary small" }, "Maps are AgentSociety/MOSS .pb files, like the ones AgentSociety 1 builds from OpenStreetMap."));
+      (data.suggestions || []).forEach((s) => {
+        const nm = h("input", { value: s.name, "aria-label": "Map name" });
+        importCard.appendChild(h("div", { class: "notice good row" },
+          h("span", {}, h("strong", { text: `Found in your ${s.project} project: ` }), `${s.file} (${s.size_mb} MB)`),
+          h("span", { class: "spacer" }), nm,
+          h("button", { class: "primary", onclick: async (ev) => {
+            ev.target.disabled = true;
+            try { await api("POST", "/api/maps/import", { path: s.path, name: nm.value.trim() }); toast("Importing… preparing takes about half a minute.", "good"); await refresh(); poll(); }
+            catch (e) { toast(e.message, "bad"); ev.target.disabled = false; }
+          } }, "Import")));
+      });
+      const file = h("input", { type: "file", accept: ".pb", "aria-label": "Map file" });
+      const nm = h("input", { placeholder: "Map name", "aria-label": "Map name" });
+      const up = h("button", {}, "Import file");
+      up.addEventListener("click", async () => {
+        const f = file.files && file.files[0];
+        if (!f) { toast("Choose a .pb file first.", "bad"); return; }
+        up.disabled = true;
+        up.textContent = `Uploading ${(f.size / 1e6).toFixed(1)} MB…`;
+        try {
+          const res = await fetch(`/api/maps/upload?name=${encodeURIComponent(nm.value.trim())}&filename=${encodeURIComponent(f.name)}`,
+            { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: f });
+          const d = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(d.error || `Upload failed (${res.status})`);
+          toast("Imported. Preparing the map…", "good");
+          await refresh(); poll();
+        } catch (e) { toast(e.message, "bad"); }
+        up.disabled = false; up.textContent = "Import file";
+      });
+      importCard.appendChild(h("div", { class: "row" }, h("span", { class: "secondary small" }, "Or a .pb file from this PC:"), file, nm, up));
+    }
+
+    async function drawBuild() {
+      buildCard.innerHTML = "";
+      buildCard.appendChild(h("h2", { text: "Build a new area from OpenStreetMap" }));
+      const status = h("div", { class: "muted small" }, "Checking Docker…");
+      buildCard.appendChild(status);
+      buildCard.appendChild(h("p", { class: "secondary small" },
+        "Uses the map builder from your AgentSociety 1 project (Docker). It downloads the area's roads, buildings and places from OpenStreetMap's public Overpass service, so keep areas modest: a district takes minutes, the whole island tens of minutes and several GB of memory."));
+      const presets = h("div", { class: "row" });
+      buildCard.appendChild(presets);
+      const name = h("input", { placeholder: "e.g. Tiong Bahru", "aria-label": "Map name" });
+      const areaText = h("span", { class: "muted small" }, "No area drawn yet.");
+      let bbox = null;
+      let dockerOk = false;
+      const pickerBox = h("div", { class: "stack" });
+      const buildBtn = h("button", { class: "primary", disabled: true }, "Build this area");
+      buildCard.appendChild(pickerBox);
+      buildCard.appendChild(h("div", { class: "row" }, h("label", {}, "Map name", name), areaText, h("span", { class: "spacer" }), buildBtn));
+      const picker = StudioMaps.areaPicker(pickerBox, (b) => {
+        bbox = b;
+        const km2 = Math.abs(b[2] - b[0]) * 111.32 * Math.abs(b[3] - b[1]) * 111.32 * Math.cos(((b[0] + b[2]) / 2) * Math.PI / 180);
+        areaText.textContent = `Area ${km2.toFixed(km2 < 10 ? 1 : 0)} km² (${b.map((v) => v.toFixed(4)).join(", ")})`;
+        buildBtn.disabled = !dockerOk;
+      });
+      if (picker) pickerBox.insertBefore(h("div", { class: "row" }, picker.button, h("span", { class: "muted small" }, "Click, then drag a rectangle on the map. Scroll to zoom.")), pickerBox.firstChild);
+      async function start(body, label) {
+        if (!confirm(`Build ${label}? This downloads OpenStreetMap data and runs the Docker map builder.`)) return;
+        try { await api("POST", "/api/maps/build", body); toast("Build started. Follow it under Your maps.", "good"); await refresh(); poll(); }
+        catch (e) { toast(e.message, "bad"); }
+      }
+      buildBtn.addEventListener("click", () => {
+        if (!name.value.trim()) { toast("Give the map a name.", "bad"); return; }
+        start({ name: name.value.trim(), bbox }, `“${name.value.trim()}”`);
+      });
+      const d = await api("GET", "/api/maps/docker").catch(() => ({ message: "Couldn't check Docker." }));
+      dockerOk = !!(d.daemon && d.image);
+      status.className = dockerOk ? "badge good" : "notice warn small";
+      status.textContent = dockerOk ? "✓ Docker and the map builder are ready" : d.message;
+      Object.entries((data && data.presets) || {}).forEach(([id, p]) => {
+        presets.appendChild(h("button", { disabled: !dockerOk, title: p.note, onclick: () => {
+          if (picker) picker.setBbox(p.bbox);
+          start({ preset: id }, `${p.name} (${p.note})`);
+        } }, `Build ${p.name}`));
+      });
+      buildBtn.disabled = !(dockerOk && bbox);
+    }
+
+    await refresh();
+    await drawBuild();
+    if (data && data.maps.some((m) => ["building", "preparing", "copying"].includes(m.status))) poll();
+  };
 
   // ---- settings
   const PROVIDERS = {

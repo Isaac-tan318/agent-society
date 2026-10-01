@@ -95,6 +95,7 @@ def main() -> None:
 
     run_dir = exp_dir / "runs" / f"{args.preset}_seed{args.seed}"
     run_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["AS2_RUN_DIR"] = str(run_dir)  # per-run home for MobilitySpace (custom/envs/mobility_space_windows.py)
     from agentsociety2.society.cli import main as cli_main
 
     sys.argv = [

@@ -20,6 +20,7 @@
   --bad: #b3261e;
   --bad-bg: #fbe4e2;
   --info-bg: #e3eefb;
+  --lu-other: #b5b3ab;
   --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 2px 8px rgba(0, 0, 0, .04);
   --radius: 10px;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -31,7 +32,7 @@
     --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #96958c;
     --accent: #3987e5; --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70;
     --grid: #2c2c2a; --good: #7fd49b; --good-bg: #1c3325; --warn: #f2c265; --warn-bg: #3a2f14;
-    --bad: #ff8a80; --bad-bg: #3d1f1d; --info-bg: #1b2a3d; --shadow: none;
+    --bad: #ff8a80; --bad-bg: #3d1f1d; --info-bg: #1b2a3d; --shadow: none; --lu-other: #6b6a64;
   }
 }
 :root[data-theme="dark"] {
@@ -40,7 +41,7 @@
   --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #96958c;
   --accent: #3987e5; --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70;
   --grid: #2c2c2a; --good: #7fd49b; --good-bg: #1c3325; --warn: #f2c265; --warn-bg: #3a2f14;
-  --bad: #ff8a80; --bad-bg: #3d1f1d; --info-bg: #1b2a3d; --shadow: none;
+  --bad: #ff8a80; --bad-bg: #3d1f1d; --info-bg: #1b2a3d; --shadow: none; --lu-other: #6b6a64;
 }
 
 * { box-sizing: border-box; }
@@ -150,6 +151,26 @@ details summary { cursor: pointer; color: var(--accent); font-size: 13px; }
 .chart .tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; font-size: 12px; box-shadow: var(--shadow); white-space: nowrap; display: none; z-index: 2; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin: 4px 0 6px; }
 .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.legend i.swatch { width: 12px; height: 12px; border-radius: 3px; }
+.legend i.dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* maps */
+.map-view { height: 360px; width: 100%; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface-2); z-index: 0; }
+.map-view.drawing, .map-view.drawing .leaflet-container { cursor: crosshair; }
+.map-view .leaflet-tooltip { background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow); font: 12px "Segoe UI", system-ui, sans-serif; }
+.map-view .leaflet-tooltip.agent-label { padding: 1px 6px; font-weight: 600; }
+.map-view .leaflet-tooltip.agent-label::before { display: none; }
+.map-view .leaflet-control-attribution { font-size: 10.5px; }
+:root[data-theme="dark"] .map-view .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .map-view .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
+}
+:root[data-theme="dark"] .map-view .leaflet-control-attribution, :root[data-theme="dark"] .map-view .leaflet-bar a { background: var(--surface-2); color: var(--text-secondary); }
+.replay-controls input[type="range"] { flex: 1; min-width: 160px; }
+.place-list { display: grid; gap: 6px; }
+.place-list .row { justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.map-card .map-view { height: 300px; }
+
 .toast { position: fixed; right: 20px; bottom: 20px; max-width: 420px; z-index: 50; }
 .empty { text-align: center; padding: 30px; color: var(--text-muted); }
 .kpi { font-size: 24px; font-weight: 700; }

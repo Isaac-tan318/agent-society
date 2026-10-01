@@ -1,0 +1,82 @@
+{
+  "name": "Singapore commute test",
+  "description": "",
+  "start": "2026-01-05T07:00",
+  "agents": [
+    {
+      "name": "Alice",
+      "age": "28",
+      "gender": "woman",
+      "occupation": "software engineer",
+      "personality": "friendly and curious",
+      "bio": "Loves hiking and board games; recently moved to the city.",
+      "home": 500005516,
+      "home_info": {
+        "label": "Principal Garden",
+        "lng": 103.822002,
+        "lat": 1.292787
+      },
+      "work": 500009653,
+      "work_info": {
+        "label": "Stamford Detention Tank",
+        "lng": 103.812588,
+        "lat": 1.312219
+      }
+    },
+    {
+      "name": "Bob",
+      "age": "34",
+      "gender": "man",
+      "occupation": "data analyst",
+      "personality": "reserved and analytical",
+      "bio": "Plays chess, reads science fiction, cautious about new ideas.",
+      "home": 500009416,
+      "home_info": {
+        "label": "near Sprouts Food Place",
+        "lng": 103.818702,
+        "lat": 1.315576
+      },
+      "work": 500009156,
+      "work_info": {
+        "label": "building 500009156",
+        "lng": 103.817151,
+        "lat": 1.295556
+      }
+    },
+    {
+      "name": "Carol",
+      "age": "45",
+      "gender": "woman",
+      "occupation": "nurse",
+      "personality": "warm, practical, outspoken",
+      "bio": "Volunteers at the community center and knows everyone on the street.",
+      "home": 500002545,
+      "home_info": {
+        "label": "building 500002545",
+        "lng": 103.830235,
+        "lat": 1.301126
+      },
+      "work": 500005899,
+      "work_info": {
+        "label": "near Feast & Beast",
+        "lng": 103.864859,
+        "lat": 1.32348
+      }
+    }
+  ],
+  "steps": [
+    {
+      "type": "run",
+      "num_steps": "4",
+      "minutes": 30
+    },
+    {
+      "type": "ask",
+      "question": "Where did each person go this morning, how did they travel, and why?"
+    }
+  ],
+  "map": {
+    "id": "singapore_central"
+  },
+  "updated": "2026-09-30T21:43:15"
+}

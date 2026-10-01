@@ -1,0 +1,7 @@
+start_t: '2026-01-05T07:00:00'
+steps:
+- type: run
+  num_steps: 4
+  tick: 1800
+- type: ask
+  question: Where did each person go this morning, how did they travel, and why?

@@ -16,14 +16,46 @@ manual route; you don't need it if you use the Studio.
 |---|---|
 | **LLM settings** | Choose a provider (OpenRouter / OpenAI / Ollama / custom), paste a key, pick a model, **Test connection**, **Save**. The key is stored in `.env` and only its last 4 characters are shown. **Stop the Studio** is also here. |
 | **Paper studies** | The 7 studies of the AgentSociety 2 paper. Pick **Smoke test** (a few cents, minutes) or **Paper scale** (slow, costs more, asks you to confirm), set a seed, press **Run** (or **Check config (free)** first). Studies that can't run on this PC say why. |
-| **My experiments** | **New experiment** → name it, add people (name, age, occupation, personality), then build a timeline: *Let time pass*, *Ask the society*, *Intervene*, *Survey everyone*. **Save & check** validates it without spending anything; **Save & run** starts it. |
+| **My experiments** | **New experiment** → name it, add people (name, age, occupation, personality), optionally pick a **map** (everyone gets a home and a workplace, with **Re-roll**), then build a timeline: *Let time pass*, *Ask the society*, *Intervene*, *Survey everyone*. **Save & check** validates it without spending anything; **Save & run** starts it. |
+| **Maps** | City maps (see *Maps* below): import the Singapore map from your AgentSociety 1 project in one click, import any `.pb` map file, or **build a new area** from OpenStreetMap (a preset or a box you draw). **Show map** previews it by land use. |
 | **Runs** | Every run with live progress, its log, **Stop**, **Delete**, and links to results/answers. Runs keep going if you close the browser tab (not if you close the black window). |
-| **Results** | Paper studies: charts plus a side-by-side comparison with the paper's numbers. Your experiments: each question's answer and each survey as a table, one row per agent with the reason. |
+| **Results** | Paper studies: charts plus a side-by-side comparison with the paper's numbers. Your experiments: each question's answer and each survey as a table, one row per agent with the reason. Map experiments also get a **Movement** replay (play/slider) and a trips table. |
 
 Files the Studio writes: experiments you design go in
 `paper_experiments\my_experiments\<name>\`, and each run goes in
 `<experiment>\runs\<preset>_seed<N>\` (`console.log` holds the full log).
 The Studio only listens on `127.0.0.1`, so other computers can't reach it.
+
+### Maps (e.g. Singapore)
+
+Map experiments put each person in AgentSociety 2's `MobilitySpace`: they live and
+work in real buildings (AOIs), find places nearby (restaurants, clinics, schools…) and
+walk or drive along the map's roads while time passes.
+
+- **Where maps live:** `paper_experiments\maps\<id>\` (git-ignored): `map.pb`, a
+  preview, the list of reachable homes/workplaces, and AgentSociety 2's own
+  `map.pb.cache`. Importing copies only the `.pb`; an AgentSociety 1 `.pb.cache`
+  beside it is a different format and is ignored.
+- **Building a new area** runs the `agentsociety-singapore-mapbuilder` Docker image
+  from your AgentSociety 1 project with `ui\mapbuilder\build_osm_map.py`. It needs
+  Docker Desktop running and downloads the area from OpenStreetMap's public Overpass
+  service. Central Singapore takes minutes; the whole island takes tens of minutes and
+  several GB of RAM.
+- **Routing on Windows.** AgentSociety 2's route service is a Linux/macOS-only binary,
+  so this project ships a replacement:
+  - The Python router is `paper_experiments\custom\routing\py_router.py`: shortest
+    travel time over the map's own lanes.
+  - A drop-in `MobilitySpace` (`paper_experiments\custom\envs\mobility_space_windows.py`)
+    starts that router on Windows. It overrides the built-in class of the same name.
+    On Linux/macOS it uses the official binary, unless `AS2_PYTHON_ROUTER=1` is set.
+  - Routes and travel times can differ slightly from the official binary's.
+  - The library, not the router, finishes every trip within 30 simulated minutes.
+- **People are only placed in reachable buildings,** those connected to the main road
+  and footpath network, so trips between any two of them succeed.
+- **Upstream quirk (agentsociety2 2.8.2, not fixed here):** `MobilitySpace` sends
+  trip-mode codes where the router expects route-type codes. So a "driving" trip
+  follows a walking route and vice versa. The Python router behaves like the official
+  one, so results match the official setup.
 
 ## Quick start (3 steps)
 

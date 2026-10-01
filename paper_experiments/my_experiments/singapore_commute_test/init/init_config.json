@@ -1,0 +1,121 @@
+{
+  "env_modules": [
+    {
+      "module_type": "SimpleSocialSpace",
+      "kwargs": {
+        "agent_id_name_pairs": [
+          [
+            1,
+            "Alice"
+          ],
+          [
+            2,
+            "Bob"
+          ],
+          [
+            3,
+            "Carol"
+          ]
+        ]
+      }
+    },
+    {
+      "module_type": "MobilitySpace",
+      "kwargs": {
+        "file_path": "maps/singapore_central/map.pb",
+        "home_dir": "",
+        "persons": [
+          {
+            "id": 1,
+            "position": {
+              "aoi_id": 500005516
+            },
+            "home_aoi": 500005516,
+            "work_aoi": 500009653
+          },
+          {
+            "id": 2,
+            "position": {
+              "aoi_id": 500009416
+            },
+            "home_aoi": 500009416,
+            "work_aoi": 500009156
+          },
+          {
+            "id": 3,
+            "position": {
+              "aoi_id": 500002545
+            },
+            "home_aoi": 500002545,
+            "work_aoi": 500005899
+          }
+        ]
+      }
+    }
+  ],
+  "agents": [
+    {
+      "agent_id": 1,
+      "agent_type": "PersonAgent",
+      "kwargs": {
+        "id": 1,
+        "name": "Alice",
+        "age": 28,
+        "gender": "woman",
+        "occupation": "software engineer",
+        "personality": "friendly and curious",
+        "bio": "Loves hiking and board games; recently moved to the city.",
+        "max_react_turns": 6,
+        "city": "Singapore - central",
+        "home": "AOI 500005516 (Principal Garden)",
+        "workplace": "AOI 500009653 (Stamford Detention Tank)",
+        "default_activated_skill_ids": [
+          "built-in@daily-guidance"
+        ]
+      }
+    },
+    {
+      "agent_id": 2,
+      "agent_type": "PersonAgent",
+      "kwargs": {
+        "id": 2,
+        "name": "Bob",
+        "age": 34,
+        "gender": "man",
+        "occupation": "data analyst",
+        "personality": "reserved and analytical",
+        "bio": "Plays chess, reads science fiction, cautious about new ideas.",
+        "max_react_turns": 6,
+        "city": "Singapore - central",
+        "home": "AOI 500009416 (near Sprouts Food Place)",
+        "workplace": "AOI 500009156 (building 500009156)",
+        "default_activated_skill_ids": [
+          "built-in@daily-guidance"
+        ]
+      }
+    },
+    {
+      "agent_id": 3,
+      "agent_type": "PersonAgent",
+      "kwargs": {
+        "id": 3,
+        "name": "Carol",
+        "age": 45,
+        "gender": "woman",
+        "occupation": "nurse",
+        "personality": "warm, practical, outspoken",
+        "bio": "Volunteers at the community center and knows everyone on the street.",
+        "max_react_turns": 6,
+        "city": "Singapore - central",
+        "home": "AOI 500002545 (building 500002545)",
+        "workplace": "AOI 500005899 (near Feast & Beast)",
+        "default_activated_skill_ids": [
+          "built-in@daily-guidance"
+        ]
+      }
+    }
+  ],
+  "codegen_router": {
+    "final_summary_enabled": true
+  }
+}
